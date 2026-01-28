@@ -2,7 +2,7 @@ name: Deploy Vite to GitHub Pages
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
 
 permissions:
@@ -18,4 +18,32 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/chec
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install
+        working-directory: ad-funnel-analyzer
+        run: npm install
+
+      - name: Build
+        working-directory: ad-funnel-analyzer
+        run: npm run build
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ad-funnel-analyzer/dist
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: github-pages
+    steps:
+      - name: Deploy
+        uses: actions/deploy-pages@v4
