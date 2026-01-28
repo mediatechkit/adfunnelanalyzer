@@ -109,7 +109,7 @@ const AdTable: React.FC<Props> = ({ data }) => {
               <HeaderCell label="Spend" columnKey="spend" align="right" />
               <HeaderCell label="CPM" columnKey="cpm" align="right" />
               <HeaderCell label="CTR" columnKey="ctr" align="right" />
-              <HeaderCell label="Purch" columnKey="purchases" align="right" />
+              <HeaderCell label="PUR" columnKey="purchases" align="right" />
               <HeaderCell label="CPA" columnKey="cpa" align="right" />
               <HeaderCell label="Freq" columnKey="frequency" align="right" />
             </tr>
@@ -176,8 +176,7 @@ function getStatusStyles(status: AdPerformanceStatus) {
 function getDeliveryColor(status: string) {
   const s = status.toLowerCase();
   
-  // Check for inactive states FIRST to avoid 'inactive' matching 'active'
-  if (s.includes('inactive') || s.includes('off') || s.includes('not delivering')) {
+  if (s.includes('inactive') || s.includes('off') || s.includes('not')) {
     return 'bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.4)]';
   }
   
@@ -195,8 +194,7 @@ function getDeliveryColor(status: string) {
 function getDeliveryTextColor(status: string) {
   const s = status.toLowerCase();
   
-  // Check for inactive states FIRST
-  if (s.includes('inactive') || s.includes('off') || s.includes('not delivering')) {
+  if (s.includes('inactive') || s.includes('off') || s.includes('not')) {
     return 'text-orange-700 font-semibold';
   }
   

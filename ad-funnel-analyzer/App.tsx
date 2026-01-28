@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { GoogleGenAI } from '@google/genai';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { RawAdData, AnalyzedAd, FunnelStage } from './types';
 import FileUploader from './components/FileUploader';
 import Dashboard from './components/Dashboard';
@@ -21,46 +22,48 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [availableDays, setAvailableDays] = useState<number>(0);
   const [isDaily, setIsDaily] = useState<boolean>(false);
+  const isFirstLoad = useRef(true);
 
   useEffect(() => {
-    const lines = rawCsv.trim().split(/\r?\n/);
-    if (lines.length > 1) {
-      handleDataAnalysis(rawCsv);
-    } else {
-      setData([]);
-      setAvailableDays(0);
-      setIsDaily(false);
+    // Only run analysis if we have content and it's not just the empty initial state
+    // If it is the first load, we try silently; if it fails, we just show the empty state
+    // But if a user UPLOADS, we must show the error.
+    if (rawCsv.trim() !== "") {
+      handleDataAnalysis(rawCsv, !isFirstLoad.current);
     }
+    isFirstLoad.current = false;
   }, [rawCsv]);
 
   const handleDataLoaded = (csvString: string) => {
+    setError(null);
     setRawCsv(csvString);
   };
 
-  const handleDataAnalysis = (csvString: string) => {
-    const lines = csvString.trim().split(/\r?\n/);
-    if (lines.length < 2) return;
-
+  const handleDataAnalysis = (csvString: string, shouldShowError: boolean = true) => {
     setLoading(true);
-    setError(null);
+    if (shouldShowError) setError(null);
+
     try {
+      // Small timeout to allow UI to show loading state
       setTimeout(() => {
         try {
-          // Pass a large number for daysLookback to ensure we always get the full range
           const result = runAnalysis(csvString, 9999);
           setData(result.data);
           setAvailableDays(result.availableDays);
           setIsDaily(result.isDailyBreakdown);
           setLoading(false);
+          setError(null);
         } catch (err: any) {
-          setError(err.message || 'Error processing file');
           setLoading(false);
           setData([]);
+          if (shouldShowError) {
+            setError(err.message || 'The file format is invalid. Please ensure all mandatory sections are present.');
+          }
         }
-      }, 100);
+      }, 50);
     } catch (err: any) {
-      setError('Please upload a valid Meta Ads export file.');
       setLoading(false);
+      if (shouldShowError) setError('Error processing file.');
     }
   };
 
@@ -78,8 +81,12 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-slate-50 flex flex-col font-sans antialiased text-slate-900">
       <header className="bg-white/80 backdrop-blur-md border-b border-slate-200 sticky top-0 z-40 w-full shrink-0">
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center text-white shadow-lg shadow-slate-200 transition-transform hover:scale-105 cursor-default">
+          <div 
+            className="flex items-center gap-3 cursor-pointer group"
+            onClick={() => window.location.reload()}
+            title="Refresh App"
+          >
+            <div className="w-10 h-10 bg-black rounded-xl flex items-center justify-center text-white shadow-lg shadow-slate-200 transition-transform group-hover:scale-105">
               <Logo className="w-6 h-6" />
             </div>
             <h1 className="text-xl font-black tracking-tight text-black">
@@ -93,9 +100,9 @@ const App: React.FC = () => {
       </header>
 
       <main className="flex-grow w-full max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        {!hasData && !loading ? (
+        {!hasData && !loading && !error ? (
           <div className="flex flex-col items-center justify-center py-24 animate-in fade-in zoom-in duration-700">
-            <div className="w-24 h-24 bg-black rounded-3xl flex items-center justify-center text-white shadow-2xl shadow-slate-200 mb-8">
+            <div className="w-24 h-24 bg-black rounded-3xl flex items-center justify-center text-white shadow-2xl shadow-slate-200 mb-8 cursor-pointer hover:scale-105 transition-transform" onClick={() => window.location.reload()}>
                <Logo className="w-14 h-14" />
             </div>
             <FileUploader onDataLoaded={handleDataLoaded} />
@@ -133,36 +140,50 @@ const App: React.FC = () => {
         ) : (
           <div className="space-y-8 animate-in fade-in slide-in-from-bottom-6 duration-700">
             {error && (
-              <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-xl flex items-center gap-3 shadow-md shadow-red-100">
-                <svg className="w-6 h-6 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-                <p className="text-red-900 text-sm font-black uppercase tracking-tight">{error}</p>
+              <div className="max-w-3xl mx-auto mt-8 flex flex-col items-center">
+                <div className="bg-white border-2 border-red-100 p-8 rounded-3xl flex flex-col items-center text-center gap-6 shadow-2xl shadow-red-50/50">
+                  <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center">
+                    <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight">Invalid File Format</h3>
+                    <p className="mt-2 text-slate-500 font-medium leading-relaxed">
+                      {error}
+                    </p>
+                  </div>
+                  <FileUploader onDataLoaded={handleDataLoaded} />
+                </div>
               </div>
             )}
             
-            <Dashboard 
-              data={data} 
-              distribution={funnelDistribution} 
-              availableDays={availableDays}
-              isDaily={isDaily}
-            />
-            
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-              <div className="lg:col-span-8">
-                <AdTable data={data} />
-              </div>
-              <div className="lg:col-span-4 sticky top-24">
-                <InsightsPanel data={data} />
-              </div>
-            </div>
+            {hasData && (
+              <>
+                <Dashboard 
+                  data={data} 
+                  distribution={funnelDistribution} 
+                  availableDays={availableDays}
+                  isDaily={isDaily}
+                />
+                
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+                  <div className="lg:col-span-8">
+                    <AdTable data={data} />
+                  </div>
+                  <div className="lg:col-span-4 sticky top-24">
+                    <InsightsPanel data={data} />
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
       </main>
 
       <footer className="border-t border-slate-200 bg-white py-12 mt-auto">
         <div className="max-w-[1600px] mx-auto px-4 flex flex-col items-center text-center space-y-2">
-          <div className="text-black mb-2">
+          <div className="text-black mb-2 cursor-pointer hover:scale-110 transition-transform" onClick={() => window.location.reload()}>
             <Logo className="w-8 h-8 opacity-50" />
           </div>
           <p className="font-black text-black tracking-tight text-lg">Ad Funnel Analyzer</p>

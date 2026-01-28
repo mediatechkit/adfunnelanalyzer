@@ -18,9 +18,9 @@ const Dashboard: React.FC<Props> = ({ data, distribution, availableDays, isDaily
     [FunnelStage.BOF]: '#d946ef', // fuchsia
   };
 
+  // Fixed: Use strict equality comparison to avoid 'Inactive' matching because it contains 'active'
   const activeAdsCount = data.filter(ad => 
-    ad.deliveryStatus.toLowerCase().includes('active') || 
-    ad.deliveryStatus.toLowerCase().includes('on')
+    ad.deliveryStatus === 'Active'
   ).length;
 
   const inactiveAdsCount = data.length - activeAdsCount;
