@@ -1,0 +1,5 @@
+{
+  "name": "Ad Funnel Analyzer",
+  "description": "A performance marketing tool that classifies Meta ads into funnel stages and provides data-driven health diagnostics and scaling recommendations.",
+  "requestFramePermissions": []
+}
